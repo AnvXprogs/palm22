@@ -23,7 +23,7 @@ class ChatServer:
             accept_thread = Thread(target=self._accept_connections, daemon=True)
             accept_thread.start()
             
-            self._admin_console()  # Блокирующий вызов
+            self._admin_console()
             
         except Exception as e:
             print(f"[{self._current_time()}] Ошибка: {e}")
@@ -34,6 +34,8 @@ class ChatServer:
         while self.running:
             try:
                 client, address = self.server_socket.accept()
+                # Сразу отправляем приветствие с просьбой ввести имя
+                client.send(bytes("Добро пожаловать! Напишите ваше имя:", "utf8"))
                 Thread(target=self._handle_client, args=(client,), daemon=True).start()
             except:
                 if self.running:
@@ -42,21 +44,22 @@ class ChatServer:
     def _handle_client(self, client):
         try:
             # Получаем имя клиента
-            name = client.recv(self.buffer_size).decode('utf8').strip()
+            name = client.recv(self.buffer_size).decode("utf8").strip()
             if not name:
                 raise ValueError("Пустое имя")
                 
             with self.lock:
                 self.clients[client] = name
                 
-            welcome = f"Добро пожаловать, {name}! (Ваши сообщения тоже видны вам)"
-            client.send(bytes(welcome, 'utf8'))
+            # Приветствуем пользователя
+            welcome_msg = f"Привет, {name}! Теперь вы в чате. Ваши сообщения будут видны всем."
+            client.send(bytes(welcome_msg, "utf8"))
             
             # Уведомляем всех о новом участнике (включая самого клиента)
             self._broadcast(f"{name} присоединился к чату!")
             
             while self.running:
-                msg = client.recv(self.buffer_size).decode('utf8').strip()
+                msg = client.recv(self.buffer_size).decode("utf8").strip()
                 if not msg or msg == "{quit}":
                     break
                     
@@ -76,7 +79,7 @@ class ChatServer:
         with self.lock:
             for client in list(self.clients.keys()):
                 try:
-                    client.send(bytes(msg, 'utf8'))
+                    client.send(bytes(msg, "utf8"))
                 except:
                     pass
 
@@ -97,7 +100,7 @@ class ChatServer:
         with self.lock:
             for client in list(self.clients.keys()):
                 try:
-                    client.send(bytes("{quit}", 'utf8'))
+                    client.send(bytes("{quit}", "utf8"))
                     client.close()
                 except:
                     pass
